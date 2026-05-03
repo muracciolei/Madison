@@ -4,6 +4,8 @@ import { getSpeechRate, setSpeechRate, getAutoSpeak, saveAutoSpeak, isSpeechSynt
 import { clearHistory } from './history.js';
 import { setActiveSpeed, updateSpeedLabel } from './ui.js';
 
+const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
+
 let _onClearHistory = null;
 
 export function initSettings({ onClearHistory } = {}) {
@@ -18,24 +20,22 @@ export function initSettings({ onClearHistory } = {}) {
   closeBtn?.addEventListener('click', closeSettings);
   overlay?.addEventListener('click', closeSettings);
 
-  // Close on Escape
+  // Escape key closes, Tab key is trapped inside panel
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && !panel?.classList.contains('hidden')) closeSettings();
+    if (panel?.classList.contains('hidden')) return;
+    if (e.key === 'Escape') { closeSettings(); return; }
+    if (e.key === 'Tab') trapFocus(e, panel);
   });
 
   // NASA key
   const nasaInput = document.getElementById('nasa-key-input');
   const nasaSave  = document.getElementById('nasa-key-save');
-  if (nasaInput) nasaInput.value = getNasaApiKey() === 'DEMO_KEY' ? '' : getNasaApiKey();
+  const currentKey = getNasaApiKey();
+  if (nasaInput) nasaInput.value = currentKey === 'DEMO_KEY' ? '' : currentKey;
   nasaSave?.addEventListener('click', () => {
     const key = nasaInput?.value.trim();
-    if (key) {
-      setNasaApiKey(key);
-      showSettingsNotice('NASA API key saved.');
-    } else {
-      setNasaApiKey('DEMO_KEY');
-      showSettingsNotice('Reset to DEMO_KEY.');
-    }
+    setNasaApiKey(key || 'DEMO_KEY');
+    showSettingsNotice(key ? 'NASA API key saved.' : 'Reset to DEMO_KEY.');
   });
 
   // Speech rate
@@ -62,18 +62,15 @@ export function initSettings({ onClearHistory } = {}) {
       saveAutoSpeak(autoSpeakToggle.checked);
       const speakBtn = document.getElementById('speak-btn');
       if (speakBtn) {
-        autoSpeakToggle.checked ? speakBtn.classList.remove('muted') : speakBtn.classList.add('muted');
+        speakBtn.classList.toggle('muted', !autoSpeakToggle.checked);
         speakBtn.setAttribute('aria-pressed', String(!autoSpeakToggle.checked));
       }
     });
-    if (!isSpeechSynthesisSupported()) {
-      autoSpeakToggle.disabled = true;
-    }
+    if (!isSpeechSynthesisSupported()) autoSpeakToggle.disabled = true;
   }
 
   // Clear history
-  const clearBtn = document.getElementById('settings-clear-history');
-  clearBtn?.addEventListener('click', () => {
+  document.getElementById('settings-clear-history')?.addEventListener('click', () => {
     clearHistory();
     _onClearHistory?.();
     showSettingsNotice('Chat history cleared.');
@@ -81,15 +78,34 @@ export function initSettings({ onClearHistory } = {}) {
 }
 
 export function openSettings() {
-  document.getElementById('settings-panel')?.classList.remove('hidden');
-  document.getElementById('settings-overlay')?.classList.remove('hidden');
-  document.getElementById('settings-panel')?.focus();
+  const panel = document.getElementById('settings-panel');
+  const overlay = document.getElementById('settings-overlay');
+  panel?.classList.remove('hidden');
+  overlay?.classList.remove('hidden');
+  overlay?.removeAttribute('aria-hidden');
+  // Focus first focusable element inside panel
+  const first = panel?.querySelectorAll(FOCUSABLE)[0];
+  first?.focus();
 }
 
 export function closeSettings() {
   document.getElementById('settings-panel')?.classList.add('hidden');
   document.getElementById('settings-overlay')?.classList.add('hidden');
+  document.getElementById('settings-overlay')?.setAttribute('aria-hidden', 'true');
   document.getElementById('settings-btn')?.focus();
+}
+
+function trapFocus(e, panel) {
+  const focusable = Array.from(panel.querySelectorAll(FOCUSABLE));
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last  = focusable[focusable.length - 1];
+
+  if (e.shiftKey) {
+    if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+  } else {
+    if (document.activeElement === last)  { e.preventDefault(); first.focus(); }
+  }
 }
 
 function showSettingsNotice(msg) {

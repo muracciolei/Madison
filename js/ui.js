@@ -6,8 +6,8 @@ export function createUserMessage(text) {
   return _createMessage(text, 'user');
 }
 
-export function createBotMessage(text, source = 'Bot', sourceType = 'api', url = null) {
-  return _createMessage(text, 'bot', source, sourceType, url);
+export function createBotMessage(text, source = 'Bot', sourceType = 'api', url = null, imageUrl = null) {
+  return _createMessage(text, 'bot', source, sourceType, url, imageUrl);
 }
 
 export function createErrorMessage(errorText, onRetry = null) {
@@ -36,7 +36,7 @@ export function createErrorMessage(errorText, onRetry = null) {
   return msg;
 }
 
-function _createMessage(text, role, source = null, sourceType = null, url = null) {
+function _createMessage(text, role, source = null, sourceType = null, url = null, imageUrl = null) {
   const msg = document.createElement('div');
   msg.className = `message ${role}`;
 
@@ -46,6 +46,19 @@ function _createMessage(text, role, source = null, sourceType = null, url = null
 
   const content = document.createElement('div');
   content.className = 'message-content';
+
+  // Inline image (e.g. NASA APOD)
+  if (imageUrl) {
+    const figure = document.createElement('figure');
+    figure.className = 'message-image';
+    const img = document.createElement('img');
+    img.src = imageUrl;
+    img.alt = source ?? 'Image';
+    img.loading = 'lazy';
+    img.addEventListener('click', () => window.open(imageUrl, '_blank', 'noopener,noreferrer'));
+    figure.appendChild(img);
+    content.appendChild(figure);
+  }
 
   const textDiv = document.createElement('div');
   textDiv.className = 'message-text';
@@ -75,6 +88,30 @@ function _createMessage(text, role, source = null, sourceType = null, url = null
     time.className = 'message-time';
     time.textContent = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     meta.appendChild(time);
+
+    // Copy button
+    if (navigator.clipboard) {
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'copy-btn';
+      copyBtn.setAttribute('aria-label', 'Copy response to clipboard');
+      copyBtn.title = 'Copy';
+      copyBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+      </svg>`;
+      copyBtn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          copyBtn.classList.add('copied');
+          copyBtn.setAttribute('aria-label', 'Copied!');
+          setTimeout(() => {
+            copyBtn.classList.remove('copied');
+            copyBtn.setAttribute('aria-label', 'Copy response to clipboard');
+          }, 2000);
+        } catch { /* clipboard access denied — silently ignore */ }
+      });
+      meta.appendChild(copyBtn);
+    }
 
     content.appendChild(meta);
   }

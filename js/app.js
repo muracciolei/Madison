@@ -6,7 +6,7 @@ import {
   initSpeech, isVoiceInputSupported, isSpeechSynthesisSupported,
   startListening, stopListening, speak, stopSpeaking,
   isListening, getAutoSpeak, saveAutoSpeak, setSpeechRate, getSpeechRate,
-  onListeningChange, onSpeakingChange, onSpeechResult, onSpeechPartial, onSpeechError,
+  onListeningChange, onSpeechResult, onSpeechPartial, onSpeechError,
   loadSpeechPrefs,
 } from './speech.js';
 import {
@@ -32,28 +32,30 @@ export async function handleQuery(query) {
 
   showTypingIndicator(true);
 
-  try {
-    const { text, source, sourceType, url } = await resolveQuery(query);
-    const botMsg = createBotMessage(text, source, sourceType, url);
-    addMessageToChat(botMsg);
-    saveMessage({ role: 'bot', text, source, sourceType, url });
+  let errMsgEl = null;
 
-    if (getAutoSpeak()) speak(plainText(text));
+  try {
+    const result = await resolveQuery(query);
+    const botMsg = createBotMessage(result.text, result.source, result.sourceType, result.url, result.imageUrl);
+    addMessageToChat(botMsg);
+    saveMessage({ role: 'bot', text: result.text, source: result.source, sourceType: result.sourceType, url: result.url });
+
+    if (getAutoSpeak()) speak(plainText(result.text));
   } catch (error) {
     console.error('Query error:', error);
-    const retryFn = () => {
-      const errorMsgs = document.getElementById('chat-messages').querySelectorAll('.error-message');
-      errorMsgs[errorMsgs.length - 1]?.closest('.message')?.remove();
+    // Capture reference at creation time — avoids stale querySelectorAll bug
+    errMsgEl = createErrorMessage(error.message || 'Something went wrong. Please try again.', () => {
+      errMsgEl?.closest('.message')?.remove();
       handleQuery(query);
-    };
-    const errMsg = createErrorMessage(error.message || 'Something went wrong. Please try again.', retryFn);
-    addMessageToChat(errMsg);
+    });
+    addMessageToChat(errMsgEl);
   } finally {
     showTypingIndicator(false);
     isProcessing = false;
   }
 }
 
+// ---- Intent → data → formatted text ----
 async function resolveQuery(query) {
   const intent = detectIntent(query);
 
@@ -64,12 +66,19 @@ async function resolveQuery(query) {
       return { text: formatWeather(data), source: data.source, sourceType: 'api', url: data.url };
     }
     case 'news': {
-      const items = await fetchNews();
-      return { text: formatNews(items), source: 'News', sourceType: 'rss', url: null };
+      const topic = extractNewsTopic(query);
+      const items = await fetchNews(topic);
+      return { text: formatNews(items, topic), source: 'News', sourceType: 'rss', url: null };
     }
     case 'nasa': {
       const data = await fetchNASAApod();
-      return { text: formatNASAApod(data), source: data.source, sourceType: 'api', url: data.url };
+      return {
+        text: formatNASAApod(data),
+        source: data.source,
+        sourceType: 'api',
+        url: data.url,
+        imageUrl: data.mediaType !== 'video' ? data.imageUrl : null,
+      };
     }
     case 'exchange': {
       const currencyInfo = extractCurrency(query);
@@ -79,39 +88,82 @@ async function resolveQuery(query) {
     case 'dictionary': {
       const word = extractWord(query);
       if (!word) {
-        const wikiQuery = cleanWikiQuery(query);
-        const data = await fetchWikipedia(wikiQuery);
+        const data = await fetchWikipedia(cleanWikiQuery(query));
         return { text: formatWikipedia(data), source: data.source, sourceType: 'wiki', url: data.url };
       }
       const data = await fetchDictionary(word);
       return { text: formatDictionary(data), source: data.source, sourceType: 'dict', url: data.url };
     }
     default: {
-      const wikiQuery = cleanWikiQuery(query);
-      const data = await fetchWikipedia(wikiQuery || query);
+      const data = await fetchWikipedia(cleanWikiQuery(query) || query);
       return { text: formatWikipedia(data), source: data.source, sourceType: 'wiki', url: data.url };
     }
   }
 }
 
+function extractNewsTopic(query) {
+  const patterns = [
+    /news\s+(?:about|on|regarding|related\s+to)\s+(.+)/i,
+    /(?:latest|breaking|recent)\s+(.+?)\s+news/i,
+    /(?:headlines?|stories?|articles?)\s+(?:about|on)\s+(.+)/i,
+  ];
+  for (const p of patterns) {
+    const m = query.match(p);
+    if (m) return m[1].trim();
+  }
+  return null;
+}
+
 // ---- Theme ----
 function initTheme() {
   const saved = localStorage.getItem('madison-theme');
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  if (saved === 'dark' || (!saved && prefersDark)) {
-    document.documentElement.setAttribute('data-theme', 'dark');
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+
+  function applyTheme(dark) {
+    if (dark) document.documentElement.setAttribute('data-theme', 'dark');
+    else document.documentElement.removeAttribute('data-theme');
   }
+
+  applyTheme(saved === 'dark' || (!saved && mq.matches));
+
+  // Real-time sync when OS theme changes (only if user hasn't set a preference)
+  mq.addEventListener('change', e => {
+    if (!localStorage.getItem('madison-theme')) applyTheme(e.matches);
+  });
 }
 
 function toggleTheme() {
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   const next = isDark ? 'light' : 'dark';
-  if (next === 'dark') {
-    document.documentElement.setAttribute('data-theme', 'dark');
-  } else {
-    document.documentElement.removeAttribute('data-theme');
-  }
+  if (next === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+  else document.documentElement.removeAttribute('data-theme');
   localStorage.setItem('madison-theme', next);
+}
+
+// ---- PWA Install Prompt ----
+function initInstallPrompt() {
+  let deferred = null;
+  const btn = document.getElementById('install-btn');
+  if (!btn) return;
+
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferred = e;
+    btn.removeAttribute('hidden');
+  });
+
+  btn.addEventListener('click', async () => {
+    if (!deferred) return;
+    deferred.prompt();
+    const { outcome } = await deferred.userChoice;
+    if (outcome === 'accepted') btn.setAttribute('hidden', '');
+    deferred = null;
+  });
+
+  window.addEventListener('appinstalled', () => {
+    btn.setAttribute('hidden', '');
+    deferred = null;
+  });
 }
 
 // ---- Service Worker ----
@@ -145,13 +197,13 @@ function restoreHistory() {
 
 // ---- Event listeners ----
 function initEventListeners() {
-  const sendBtn  = document.getElementById('send-btn');
-  const input    = document.getElementById('user-input');
-  const micBtn   = document.getElementById('mic-btn');
-  const speakBtn = document.getElementById('speak-btn');
-  const themeBtn = document.getElementById('theme-btn');
-  const clearBtn = document.getElementById('clear-btn');
-  const speedBtn = document.getElementById('speed-btn');
+  const sendBtn   = document.getElementById('send-btn');
+  const input     = document.getElementById('user-input');
+  const micBtn    = document.getElementById('mic-btn');
+  const speakBtn  = document.getElementById('speak-btn');
+  const themeBtn  = document.getElementById('theme-btn');
+  const clearBtn  = document.getElementById('clear-btn');
+  const speedBtn  = document.getElementById('speed-btn');
   const speedMenu = document.getElementById('speed-menu');
 
   const submit = () => {
@@ -164,22 +216,15 @@ function initEventListeners() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); }
   });
 
-  // Mic button — hide if unsupported, show capability message
   if (isVoiceInputSupported()) {
     micBtn.removeAttribute('hidden');
     micBtn.addEventListener('click', () => isListening() ? stopListening() : startListening());
     onListeningChange(listening => setMicListening(listening));
     onSpeechResult(transcript => { clearInput(); handleQuery(transcript); });
     onSpeechPartial(transcript => setInputValue(transcript));
-    onSpeechError(err => {
-      console.warn('Speech error:', err);
-      setMicListening(false);
-    });
-  } else {
-    micBtn.setAttribute('hidden', '');
+    onSpeechError(err => { console.warn('Speech error:', err); setMicListening(false); });
   }
 
-  // Speak button
   if (isSpeechSynthesisSupported()) {
     speakBtn.removeAttribute('hidden');
     speedBtn.removeAttribute('hidden');
@@ -188,11 +233,7 @@ function initEventListeners() {
       saveAutoSpeak(next);
       setMuted(!next);
     });
-    // Sync initial muted state
     setMuted(!getAutoSpeak());
-  } else {
-    speakBtn.setAttribute('hidden', '');
-    speedBtn.setAttribute('hidden', '');
   }
 
   themeBtn.addEventListener('click', toggleTheme);
@@ -205,7 +246,6 @@ function initEventListeners() {
 
   speedBtn.addEventListener('click', e => { e.stopPropagation(); toggleSpeedMenu(); });
 
-  // Speed menu keyboard nav
   speedMenu.querySelectorAll('button').forEach((btn, i, all) => {
     btn.addEventListener('click', () => {
       const rate = parseFloat(btn.dataset.speed);
@@ -229,10 +269,9 @@ function initEventListeners() {
   window.addEventListener('beforeunload', stopSpeaking);
 }
 
-// ---- Handle URL shortcut queries (?query=...) ----
+// ---- URL shortcut queries (?query=weather) ----
 function handleUrlQuery() {
-  const params = new URLSearchParams(location.search);
-  const q = params.get('query');
+  const q = new URLSearchParams(location.search).get('query');
   if (q) setTimeout(() => handleQuery(q), 300);
 }
 
@@ -240,21 +279,17 @@ function handleUrlQuery() {
 async function init() {
   initTheme();
   loadSpeechPrefs();
-
-  // Restore saved speed label
   updateSpeedLabel(getSpeechRate());
   setActiveSpeed(getSpeechRate());
 
   await registerServiceWorker();
+  initInstallPrompt();
 
   if (isVoiceInputSupported() || isSpeechSynthesisSupported()) initSpeech();
 
   restoreHistory();
   initEventListeners();
-
-  initSettings({
-    onClearHistory: () => clearChatMessages(),
-  });
+  initSettings({ onClearHistory: () => clearChatMessages() });
 
   focusInput();
   handleUrlQuery();

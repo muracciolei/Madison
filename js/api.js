@@ -100,6 +100,7 @@ export async function fetchNASAApod() {
     imageUrl: data.url,
     hdUrl: data.hdurl || data.url,
     date: data.date,
+    mediaType: data.media_type ?? 'image',
     source: 'NASA APOD',
     url: 'https://apod.nasa.gov/apod/astropix.html',
   };
@@ -186,7 +187,7 @@ async function fetchRSSFeed(feed) {
   });
 }
 
-export async function fetchNews() {
+export async function fetchNews(topic = null) {
   const results = [];
 
   // HackerNews — no CORS needed
@@ -209,6 +210,17 @@ export async function fetchNews() {
   }
 
   results.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+
+  if (topic) {
+    const terms = topic.toLowerCase().split(/\s+/).filter(t => t.length > 2);
+    const filtered = results.filter(item => {
+      const hay = `${item.title} ${item.description}`.toLowerCase();
+      return terms.some(t => hay.includes(t));
+    });
+    // Fall back to all results if topic yields nothing
+    return (filtered.length > 0 ? filtered : results).slice(0, 12);
+  }
+
   return results.slice(0, 12);
 }
 
