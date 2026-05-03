@@ -441,6 +441,20 @@ body {
 /* Install button */
 .install-btn { color: var(--accent); }
 
+/* Buy Me a Coffee button */
+.coffee-btn {
+  color: #f59e0b;
+  text-decoration: none;
+}
+.coffee-btn:hover {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+}
+.coffee-btn:focus-visible {
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
+}
+
 .message-time { font-size: 11px; color: var(--text-secondary); }
 
 /* Error bubble */
