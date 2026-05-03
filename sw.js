@@ -1,212 +1,172 @@
-const CACHE_NAME = 'madison-v1';
-const STATIC_CACHE = 'madison-static-v1';
-const API_CACHE = 'madison-api-v1';
+const STATIC_CACHE = 'madison-static-v2';
+const API_CACHE    = 'madison-api-v2';
 
-// Static assets to cache on install
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/styles.css',
-  '/script.js',
   '/manifest.json',
-  'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap'
+  '/js/config.js',
+  '/js/intents.js',
+  '/js/api.js',
+  '/js/formatters.js',
+  '/js/speech.js',
+  '/js/ui.js',
+  '/js/history.js',
+  '/js/settings.js',
+  '/js/app.js',
+  'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap',
 ];
 
-// API endpoints to cache
-const API_ENDPOINTS = [
-  { url: 'https://api.open-meteo.com/v1/forecast', ttl: 30 * 60 * 1000 }, // 30 min
-  { url: 'https://geocoding-api.open-meteo.com/v1/search', ttl: 24 * 60 * 60 * 1000 }, // 24 hours
-  { url: 'https://api.exchangerate-api.com/v4/latest/USD', ttl: 60 * 60 * 1000 }, // 1 hour
-  { url: 'https://en.wikipedia.org/api/rest_v1/page/summary', ttl: 24 * 60 * 60 * 1000 }, // 24 hours
-  { url: 'api.dictionaryapi.dev', ttl: 24 * 60 * 60 * 1000 } // 24 hours
+// Per-domain TTLs (ms)
+const API_TTLS = [
+  { match: 'open-meteo.com',         ttl: 30 * 60_000 },
+  { match: 'geocoding-api',          ttl: 24 * 60 * 60_000 },
+  { match: 'exchangerate-api.com',   ttl: 60 * 60_000 },
+  { match: 'wikipedia.org',          ttl: 24 * 60 * 60_000 },
+  { match: 'dictionaryapi.dev',      ttl: 24 * 60 * 60_000 },
+  { match: 'nasa.gov',               ttl: 60 * 60_000 },
+  { match: 'hacker-news.firebase',   ttl: 10 * 60_000 },
+  { match: 'allorigins.win',         ttl: 15 * 60_000 },
 ];
 
-// Install event - cache static assets
-self.addEventListener('install', (event) => {
-  console.log('[SW] Installing service worker...');
+const API_DOMAINS = [
+  'open-meteo.com',
+  'geocoding-api.open-meteo.com',
+  'exchangerate-api.com',
+  'wikipedia.org',
+  'dictionaryapi.dev',
+  'api.nasa.gov',
+  'hacker-news.firebaseio.com',
+  'allorigins.win',
+];
+
+// ---- Install ----
+self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(STATIC_CACHE)
-      .then((cache) => {
-        console.log('[SW] Caching static assets');
-        return cache.addAll(STATIC_ASSETS);
-      })
+      .then(cache => cache.addAll(STATIC_ASSETS))
       .then(() => self.skipWaiting())
-      .catch((err) => console.error('[SW] Install failed:', err))
+      .catch(err => console.error('[SW] Install failed:', err))
   );
 });
 
-// Activate event - clean up old caches
-self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating service worker...');
+// ---- Activate — purge old caches ----
+self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => {
-        return Promise.all(
-          keys.filter((key) => key !== STATIC_CACHE && key !== API_CACHE)
-            .map((key) => {
-              console.log('[SW] Deleting old cache:', key);
-              return caches.delete(key);
-            })
-        );
-      })
+      .then(keys =>
+        Promise.all(
+          keys
+            .filter(k => k !== STATIC_CACHE && k !== API_CACHE)
+            .map(k => caches.delete(k))
+        )
+      )
       .then(() => self.clients.claim())
   );
 });
 
-// Fetch event - serve from cache, fallback to network
-self.addEventListener('fetch', (event) => {
+// ---- Fetch ----
+self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET requests
   if (request.method !== 'GET') return;
-
-  // Skip chrome-extension and other non-http(s) requests
   if (!url.protocol.startsWith('http')) return;
 
-  // Handle API requests
   if (isApiRequest(url)) {
-    event.respondWith(handleApiRequest(request));
+    event.respondWith(handleApiRequest(request, url));
     return;
   }
 
-  // Handle static assets and navigation requests
+  // Static assets: cache-first, background update
   event.respondWith(
-    caches.match(request)
-      .then((cachedResponse) => {
-        if (cachedResponse) {
-          // Return cached response and update in background
-          updateCacheInBackground(request);
-          return cachedResponse;
-        }
-
-        // No cache, fetch from network
-        return fetch(request)
-          .then((response) => {
-            // Cache successful responses
-            if (response.ok) {
-              const responseClone = response.clone();
-              caches.open(STATIC_CACHE)
-                .then((cache) => cache.put(request, responseClone));
-            }
-            return response;
-          })
-          .catch(() => {
-            // Offline fallback for navigation requests
-            if (request.mode === 'navigate') {
-              return caches.match('/index.html');
-            }
-            return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
-          });
-      })
+    caches.match(request).then(cached => {
+      if (cached) {
+        updateInBackground(request);
+        return cached;
+      }
+      return fetchAndCache(request, STATIC_CACHE);
+    }).catch(() => {
+      if (request.mode === 'navigate') return caches.match('/index.html');
+      return new Response('Offline', { status: 503 });
+    })
   );
 });
 
-// Check if request is for an API
 function isApiRequest(url) {
-  const apiDomains = [
-    'api.open-meteo.com',
-    'api.exchangerate-api.com',
-    'en.wikipedia.org',
-    'api.dictionaryapi.dev',
-    'api.nasa.gov',
-    'newsapi.org',
-    'rss'
-  ];
-  return apiDomains.some(domain => url.hostname.includes(domain) || url.href.includes(domain));
+  return API_DOMAINS.some(d => url.hostname.includes(d));
 }
 
-// Handle API requests with cache-first strategy
-async function handleApiRequest(request) {
-  const url = new URL(request.url);
+async function handleApiRequest(request, url) {
   const cache = await caches.open(API_CACHE);
-  
-  // Try cache first
-  const cachedResponse = await cache.match(request);
-  if (cachedResponse) {
-    const cachedTime = cachedResponse.headers.get('sw-cached-time');
-    if (cachedTime && Date.now() - parseInt(cachedTime) < getTtl(url)) {
-      // Clone before returning to avoid "body locked" error
-      return cachedResponse.clone();
-    }
+  const cached = await cache.match(request);
+
+  if (cached) {
+    const age = Date.now() - parseInt(cached.headers.get('sw-cached-at') ?? '0');
+    if (age < getTtl(url)) return cached.clone();
   }
 
-  // Fetch from network
   try {
     const response = await fetch(request);
     if (response.ok) {
-      // Create a clone for caching
-      const responseClone = response.clone();
-      
-      // Get the JSON data and create a new response
-      const data = await responseClone.json();
-      const headers = new Headers();
-      headers.set('sw-cached-time', Date.now().toString());
-      headers.set('Content-Type', 'application/json');
-      
-      const body = JSON.stringify(data);
-      const cachedResponse = new Response(body, {
-        status: 200,
-        statusText: 'OK',
-        headers
+      const body = await response.text();
+      const headers = new Headers({
+        'Content-Type': response.headers.get('Content-Type') ?? 'application/json',
+        'sw-cached-at': String(Date.now()),
       });
-      
-      await cache.put(request, cachedResponse);
+      await cache.put(request, new Response(body, { status: 200, headers }));
+      return new Response(body, { status: 200, headers });
     }
     return response;
-  } catch (error) {
-    // Return cached response if available, even if expired
-    if (cachedResponse) {
-      return cachedResponse.clone();
-    }
-    throw error;
+  } catch {
+    if (cached) return cached.clone();
+    return new Response(JSON.stringify({ error: 'Offline' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }
 
-// Get TTL for API endpoint
 function getTtl(url) {
-  for (const endpoint of API_ENDPOINTS) {
-    if (url.href.includes(endpoint.url) || url.hostname.includes(endpoint.url.replace('https://', ''))) {
-      return endpoint.ttl;
-    }
+  for (const { match, ttl } of API_TTLS) {
+    if (url.href.includes(match)) return ttl;
   }
-  return 30 * 60 * 1000; // Default 30 min
+  return 30 * 60_000;
 }
 
-// Update cache in background
-function updateCacheInBackground(request) {
+async function fetchAndCache(request, cacheName) {
+  const response = await fetch(request);
+  if (response.ok) {
+    const cache = await caches.open(cacheName);
+    cache.put(request, response.clone());
+  }
+  return response;
+}
+
+function updateInBackground(request) {
   fetch(request)
-    .then((response) => {
+    .then(response => {
       if (response.ok) {
-        caches.open(STATIC_CACHE)
-          .then((cache) => cache.put(request, response));
+        caches.open(STATIC_CACHE).then(c => c.put(request, response));
       }
     })
     .catch(() => {});
 }
 
-// Handle push notifications (for future use)
-self.addEventListener('push', (event) => {
-  const data = event.data?.json() || {};
-  const options = {
-    body: data.body || 'New update available',
-    icon: '/icon-192.png',
-    badge: '/icon-72.png',
-    vibrate: [100, 50, 100],
-    data: {
-      url: data.url || '/'
-    }
-  };
-  
+// ---- Push notifications ----
+self.addEventListener('push', event => {
+  const data = event.data?.json() ?? {};
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Madison', options)
+    self.registration.showNotification(data.title ?? 'Madison', {
+      body: data.body ?? 'New update available',
+      icon: '/manifest.json',
+      data: { url: data.url ?? '/' },
+    })
   );
 });
 
-// Handle notification clicks
-self.addEventListener('notificationclick', (event) => {
+self.addEventListener('notificationclick', event => {
   event.notification.close();
-  event.waitUntil(
-    clients.openWindow(event.notification.data.url)
-  );
+  event.waitUntil(clients.openWindow(event.notification.data.url));
 });
