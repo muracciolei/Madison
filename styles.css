@@ -37,7 +37,12 @@
 
 /* ==================== RESET ==================== */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { height: 100%; }
+html, body {
+  height: 100%;
+  /* Prevent rubber-band scroll revealing areas outside the app shell */
+  overflow: hidden;
+  overscroll-behavior: none;
+}
 
 /* ==================== BASE ==================== */
 body {
@@ -47,7 +52,6 @@ body {
   background: var(--bg);
   color: var(--text-primary);
   transition: background 0.3s ease, color 0.3s ease;
-  overflow: hidden;
 }
 
 /* Visually hidden — accessible to screen readers */
@@ -65,10 +69,16 @@ body {
 
 /* ==================== LAYOUT ==================== */
 #app {
+  /* position: fixed + inset: 0 is the most reliable way to fill exactly the
+     visible viewport on mobile browsers.  It eliminates the classic 100vh bug
+     (mobile Safari calculates 100vh as if the URL bar is hidden) and prevents
+     the app shell from scrolling behind the browser chrome. */
+  position: fixed;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  max-width: 100%;
+  /* Fallback for browsers that don't support inset */
+  top: 0; right: 0; bottom: 0; left: 0;
 }
 
 /* ==================== HEADER ==================== */
@@ -76,17 +86,26 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 20px;
+  /* Safe-area padding keeps content below the notch/Dynamic Island on iOS.
+     env() is ignored on browsers that don't support it, fallback is the plain value. */
+  padding: max(12px, env(safe-area-inset-top)) 20px 12px;
+  padding-left:  max(20px, env(safe-area-inset-left));
+  padding-right: max(20px, env(safe-area-inset-right));
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   z-index: 10;
+  /* Prevent the header from ever showing a horizontal scrollbar */
+  overflow: hidden;
+  min-width: 0;
 }
 
 .logo {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;   /* allow logo text to be clipped rather than push buttons off-screen */
+  flex-shrink: 1;
 }
 
 .logo-icon { width: 32px; height: 32px; color: var(--accent); }
@@ -94,12 +113,20 @@ body {
 .logo-text {
   font-family: 'DM Sans', sans-serif;
   font-size: 22px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-weight: 700;
   letter-spacing: 1px;
   color: var(--text-primary);
 }
 
-.header-actions { display: flex; align-items: center; gap: 8px; }
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0; /* never let the actions row shrink and clip buttons */
+}
 
 /* ==================== BUTTONS ==================== */
 .icon-btn {
@@ -501,7 +528,10 @@ body {
 
 /* ==================== INPUT AREA ==================== */
 .input-area {
-  padding: 16px 20px;
+  /* Safe-area padding for the iPhone home indicator */
+  padding: 16px 20px max(16px, env(safe-area-inset-bottom));
+  padding-left:  max(20px, env(safe-area-inset-left));
+  padding-right: max(20px, env(safe-area-inset-right));
   background: var(--surface);
   border-top: 1px solid var(--border);
   flex-shrink: 0;
@@ -682,8 +712,27 @@ body {
 .settings-notice.visible { opacity: 1; }
 
 /* ==================== RESPONSIVE ==================== */
+/* Very narrow phones (< 390px) — tighten header so buttons don't overflow */
+@media (max-width: 389px) {
+  .header {
+    padding: max(10px, env(safe-area-inset-top)) 10px 10px;
+    padding-left:  max(10px, env(safe-area-inset-left));
+    padding-right: max(10px, env(safe-area-inset-right));
+    gap: 4px;
+  }
+  .header-actions { gap: 4px; }
+  .icon-btn { width: 32px; height: 32px; }
+  .icon-btn svg { width: 16px; height: 16px; }
+  .logo-text { font-size: 16px; }
+  .speed-menu { right: 10px; }
+}
+
 @media (max-width: 640px) {
-  .header { padding: 12px 16px; }
+  .header {
+    padding: max(12px, env(safe-area-inset-top)) 14px 12px;
+    padding-left:  max(14px, env(safe-area-inset-left));
+    padding-right: max(14px, env(safe-area-inset-right));
+  }
   .logo-text { font-size: 18px; }
   .chat-messages { padding: 16px; }
   .input-area { padding: 12px 16px; }
