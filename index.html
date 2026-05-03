@@ -29,7 +29,10 @@
       </div>
 
       <div class="header-actions">
-        <button id="install-btn" class="icon-btn install-btn" aria-label="Install Madison app" title="Install app" hidden>
+        <button id="install-btn" class="icon-btn install-btn"
+          data-i18n-label="install_label"
+          data-i18n-title="install_label"
+          aria-label="Install Madison app" title="Install app" hidden>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
             <polyline points="7 10 12 15 17 10"/>
@@ -37,18 +40,27 @@
           </svg>
         </button>
 
-        <button id="settings-btn" class="icon-btn" aria-label="Open settings" title="Settings">
+        <button id="settings-btn" class="icon-btn"
+          data-i18n-label="settings_label"
+          data-i18n-title="settings_label"
+          aria-label="Open settings" title="Settings">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <circle cx="12" cy="12" r="3"/>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
           </svg>
         </button>
 
-        <button id="speed-btn" class="icon-btn" aria-label="Set voice speed" aria-haspopup="true" aria-expanded="false" title="Voice speed">
+        <button id="speed-btn" class="icon-btn"
+          data-i18n-label="speed_label"
+          data-i18n-title="speed_label"
+          aria-label="Set voice speed" aria-haspopup="true" aria-expanded="false" title="Voice speed">
           <span class="speed-label" aria-hidden="true">1x</span>
         </button>
 
-        <button id="theme-btn" class="icon-btn" aria-label="Toggle dark/light theme" title="Toggle theme">
+        <button id="theme-btn" class="icon-btn"
+          data-i18n-label="theme_label"
+          data-i18n-title="theme_label"
+          aria-label="Toggle dark/light theme" title="Toggle theme">
           <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <circle cx="12" cy="12" r="5"/>
             <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
@@ -71,22 +83,23 @@
             </svg>
           </div>
           <div class="welcome-content">
-            <h1>Ask Madison</h1>
-            <p>Your voice-powered search assistant. Ask me about:</p>
+            <h1 data-i18n="welcome_title">Ask Madison</h1>
+            <p data-i18n="welcome_subtitle">Your voice-powered search assistant. Ask me about:</p>
             <ul class="feature-list" aria-label="Available features">
-              <li>🌤️ Weather in any city</li>
-              <li>📚 Wikipedia topics</li>
-              <li>📰 Latest news</li>
-              <li>🚀 NASA space updates</li>
-              <li>💱 Currency exchange rates</li>
-              <li>📖 Word definitions</li>
+              <li data-i18n="feature_weather">🌤️ Weather in any city</li>
+              <li data-i18n="feature_wiki">📚 Wikipedia topics</li>
+              <li data-i18n="feature_news">📰 Latest news</li>
+              <li data-i18n="feature_nasa">🚀 NASA space updates</li>
+              <li data-i18n="feature_exchange">💱 Currency exchange rates</li>
+              <li data-i18n="feature_dictionary">📖 Word definitions</li>
             </ul>
-            <p class="hint">Try: "weather in London" or "what is artificial intelligence"</p>
+            <p class="hint" data-i18n="hint">Try: "weather in London" or "what is artificial intelligence"</p>
           </div>
         </div>
       </div>
 
-      <div class="typing-indicator" id="typing-indicator" style="display:none;" aria-label="Madison is thinking" aria-hidden="true">
+      <div class="typing-indicator" id="typing-indicator" style="display:none;"
+        data-i18n-label="typing_indicator" aria-label="Madison is thinking" aria-hidden="true">
         <div class="bot-avatar" aria-hidden="true">
           <svg viewBox="0 0 32 32" fill="none">
             <circle cx="16" cy="16" r="14" fill="var(--accent)"/>
@@ -104,7 +117,10 @@
     <!-- ===== INPUT ===== -->
     <footer class="input-area" role="contentinfo">
       <div class="input-container">
-        <button id="clear-btn" class="icon-btn secondary" aria-label="Clear chat" title="Clear chat">
+        <button id="clear-btn" class="icon-btn secondary"
+          data-i18n-label="clear_label"
+          data-i18n-title="clear_label"
+          aria-label="Clear chat" title="Clear chat">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <polyline points="3 6 5 6 21 6"/>
             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -112,10 +128,11 @@
         </button>
 
         <div class="input-wrapper">
-          <label for="user-input" class="visually-hidden">Ask a question</label>
+          <label for="user-input" class="visually-hidden" data-i18n="input_placeholder">Ask a question</label>
           <input
             type="text"
             id="user-input"
+            data-i18n-placeholder="input_placeholder"
             placeholder="Type your question…"
             autocomplete="off"
             enterkeyhint="send"
@@ -123,7 +140,10 @@
           >
         </div>
 
-        <button id="mic-btn" class="icon-btn voice" aria-label="Start voice input" aria-pressed="false" title="Voice input" hidden>
+        <button id="mic-btn" class="icon-btn voice"
+          data-i18n-label="mic_label"
+          data-i18n-title="mic_label"
+          aria-label="Start voice input" aria-pressed="false" title="Voice input" hidden>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
             <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
@@ -132,7 +152,10 @@
           </svg>
         </button>
 
-        <button id="speak-btn" class="icon-btn secondary" aria-label="Toggle auto-speak" aria-pressed="false" title="Toggle auto-speak" hidden>
+        <button id="speak-btn" class="icon-btn secondary"
+          data-i18n-label="speak_label"
+          data-i18n-title="speak_label"
+          aria-label="Toggle auto-speak" aria-pressed="false" title="Toggle auto-speak" hidden>
           <svg class="volume-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
             <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
@@ -144,7 +167,10 @@
           </svg>
         </button>
 
-        <button id="send-btn" class="send-btn" aria-label="Send message" title="Send">
+        <button id="send-btn" class="send-btn"
+          data-i18n-label="send_label"
+          data-i18n-title="send_label"
+          aria-label="Send message" title="Send">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <line x1="22" y1="2" x2="11" y2="13"/>
             <polygon points="22 2 15 22 11 13 2 9 22 2"/>
@@ -167,8 +193,10 @@
     <div id="settings-overlay" class="settings-overlay hidden" aria-hidden="true"></div>
     <aside id="settings-panel" class="settings-panel hidden" role="dialog" aria-modal="true" aria-label="Settings" tabindex="-1">
       <div class="settings-header">
-        <h2>Settings</h2>
-        <button id="settings-close-btn" class="icon-btn" aria-label="Close settings">
+        <h2 data-i18n="settings_title">Settings</h2>
+        <button id="settings-close-btn" class="icon-btn"
+          data-i18n-label="settings_close"
+          aria-label="Close settings">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <line x1="18" y1="6" x2="6" y2="18"/>
             <line x1="6" y1="6" x2="18" y2="18"/>
@@ -178,22 +206,38 @@
 
       <div class="settings-body">
 
+        <!-- Language -->
         <section class="settings-section">
-          <h3>NASA API Key</h3>
-          <p class="settings-desc">
-            The default <code>DEMO_KEY</code> is rate-limited.
-            Get your free key at <a href="https://api.nasa.gov" target="_blank" rel="noopener noreferrer">api.nasa.gov</a>.
-          </p>
-          <div class="settings-input-row">
-            <input type="text" id="nasa-key-input" placeholder="Paste your API key…" aria-label="NASA API key" autocomplete="off" spellcheck="false">
-            <button id="nasa-key-save" class="btn-primary">Save</button>
+          <h3 data-i18n="settings_language">Language</h3>
+          <div class="settings-row">
+            <label for="settings-lang-select" data-i18n="settings_language">Language</label>
+            <select id="settings-lang-select" aria-label="Language">
+              <!-- populated by settings.js -->
+            </select>
           </div>
         </section>
 
+        <!-- NASA Key -->
         <section class="settings-section">
-          <h3>Speech</h3>
+          <h3 data-i18n="settings_nasa_title">NASA API Key</h3>
+          <p class="settings-desc">
+            <span data-i18n="settings_nasa_desc">The default DEMO_KEY is rate-limited. Get your free key at</span>
+            <a href="https://api.nasa.gov" target="_blank" rel="noopener noreferrer">api.nasa.gov</a>.
+          </p>
+          <div class="settings-input-row">
+            <input type="text" id="nasa-key-input"
+              data-i18n-placeholder="settings_nasa_placeholder"
+              placeholder="Paste your API key…"
+              aria-label="NASA API key" autocomplete="off" spellcheck="false">
+            <button id="nasa-key-save" class="btn-primary" data-i18n="settings_nasa_save">Save</button>
+          </div>
+        </section>
+
+        <!-- Speech -->
+        <section class="settings-section">
+          <h3 data-i18n="settings_speech_title">Speech</h3>
           <div class="settings-row">
-            <label for="settings-rate-select">Speed</label>
+            <label for="settings-rate-select" data-i18n="settings_speed">Speed</label>
             <select id="settings-rate-select" aria-label="Speech rate">
               <option value="0.5">0.5×</option>
               <option value="0.75">0.75×</option>
@@ -204,14 +248,15 @@
             </select>
           </div>
           <div class="settings-row">
-            <label for="settings-auto-speak">Auto-speak responses</label>
-            <input type="checkbox" id="settings-auto-speak" checked aria-label="Automatically speak responses">
+            <label for="settings-auto-speak" data-i18n="settings_auto_speak">Auto-speak responses</label>
+            <input type="checkbox" id="settings-auto-speak" checked aria-label="Auto-speak responses">
           </div>
         </section>
 
+        <!-- Data -->
         <section class="settings-section">
-          <h3>Data</h3>
-          <button id="settings-clear-history" class="btn-danger">Clear Chat History</button>
+          <h3 data-i18n="settings_data_title">Data</h3>
+          <button id="settings-clear-history" class="btn-danger" data-i18n="settings_clear_history">Clear Chat History</button>
         </section>
 
         <div id="settings-notice" class="settings-notice" role="status" aria-live="polite"></div>

@@ -1,5 +1,5 @@
-const STATIC_CACHE = 'madison-static-v2';
-const API_CACHE    = 'madison-api-v2';
+const STATIC_CACHE = 'madison-static-v3';
+const API_CACHE    = 'madison-api-v3';
 
 const STATIC_ASSETS = [
   '/',
@@ -7,6 +7,7 @@ const STATIC_ASSETS = [
   '/styles.css',
   '/manifest.json',
   '/js/config.js',
+  '/js/i18n.js',
   '/js/intents.js',
   '/js/api.js',
   '/js/formatters.js',

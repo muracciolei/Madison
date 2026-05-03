@@ -6,7 +6,7 @@ export const CONFIG = {
   GEOCODING_API: 'https://geocoding-api.open-meteo.com/v1/search',
   NASA_APOD: 'https://api.nasa.gov/planetary/apod',
   EXCHANGE_API: 'https://api.exchangerate-api.com/v4/latest/USD',
-  DICTIONARY_API: 'https://api.dictionaryapi.dev/api/v2/entries/en',
+  DICTIONARY_API: 'https://api.dictionaryapi.dev/api/v2/entries',
   CORS_PROXY: 'https://api.allorigins.win/raw?url=',
   HN_API: 'https://hacker-news.firebaseio.com/v2',
 };

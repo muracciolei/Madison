@@ -1,48 +1,58 @@
 // ==================== API ====================
 import { CONFIG, RSS_FEEDS, getNasaApiKey } from './config.js';
 
-// ---- Wikipedia ----
-export async function fetchWikipedia(query) {
+// ---- Wikipedia (language-aware) ----
+export async function fetchWikipedia(query, lang = 'en') {
   const title = query.trim();
   if (!title || title.length < 2) throw new Error('Please provide a valid search term.');
 
   const encoded = encodeURIComponent(title);
+  const wikiBase = `https://${lang}.wikipedia.org`;
 
-  let response = await fetch(`${CONFIG.WIKIPEDIA_API}/${encoded}`);
+  let response = await fetch(`${wikiBase}/api/rest_v1/page/summary/${encoded}`);
   if (response.ok) {
     const data = await response.json();
     if (data.type === 'disambiguation') {
+      // If disambiguation in requested lang, try English as fallback
+      if (lang !== 'en') return fetchWikipedia(query, 'en');
       throw new Error(`"${title}" is ambiguous. Try being more specific.`);
     }
     return {
       title: data.title,
       extract: data.extract,
-      url: data.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encoded}`,
+      url: data.content_urls?.desktop?.page ?? `${wikiBase}/wiki/${encoded}`,
       source: 'Wikipedia',
     };
   }
 
   // Fallback to search API
-  const fallback = `${CONFIG.WIKIPEDIA_FALLBACK}?action=query&prop=extracts&exintro&explaintext&titles=${encoded}&format=json&origin=*`;
+  const fallback = `${wikiBase}/w/api.php?action=query&prop=extracts&exintro&explaintext&titles=${encoded}&format=json&origin=*`;
   response = await fetch(fallback);
-  if (!response.ok) throw new Error('Wikipedia request failed. Please try again.');
+  if (!response.ok) {
+    // If requested lang failed, fall back to English
+    if (lang !== 'en') return fetchWikipedia(query, 'en');
+    throw new Error('Wikipedia request failed. Please try again.');
+  }
   const data = await response.json();
   const pages = data.query?.pages;
   if (!pages) throw new Error('No Wikipedia results found.');
   const page = Object.values(pages)[0];
-  if (page.missing) throw new Error(`No Wikipedia article found for "${title}".`);
+  if (page.missing) {
+    if (lang !== 'en') return fetchWikipedia(query, 'en');
+    throw new Error(`No Wikipedia article found for "${title}".`);
+  }
   return {
     title: page.title,
     extract: page.extract,
-    url: `https://en.wikipedia.org/wiki/${encodeURIComponent(page.title)}`,
+    url: `${wikiBase}/wiki/${encodeURIComponent(page.title)}`,
     source: 'Wikipedia',
   };
 }
 
-// ---- Weather ----
-export async function fetchWeather(location) {
+// ---- Weather (geocoding uses language for city name display) ----
+export async function fetchWeather(location, lang = 'en') {
   const geoRes = await fetch(
-    `${CONFIG.GEOCODING_API}?name=${encodeURIComponent(location)}&count=1&language=en&format=json`
+    `${CONFIG.GEOCODING_API}?name=${encodeURIComponent(location)}&count=1&language=${lang}&format=json`
   );
   if (!geoRes.ok) throw new Error('Geocoding service unavailable. Please try again.');
   const geoData = await geoRes.json();
@@ -119,9 +129,10 @@ export async function fetchExchangeRates() {
   };
 }
 
-// ---- Dictionary ----
-export async function fetchDictionary(word) {
-  const response = await fetch(`${CONFIG.DICTIONARY_API}/${encodeURIComponent(word)}`);
+// ---- Dictionary (language-aware endpoint) ----
+export async function fetchDictionary(word, lang = 'en') {
+  const langCode = lang === 'pt' ? 'pt-BR' : lang;
+  const response = await fetch(`${CONFIG.DICTIONARY_API}/${langCode}/${encodeURIComponent(word)}`);
   if (response.status === 404) throw new Error(`"${word}" not found in the dictionary.`);
   if (!response.ok) throw new Error('Dictionary service unavailable. Please try again.');
   const data = await response.json();

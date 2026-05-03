@@ -1,8 +1,9 @@
 // ==================== SETTINGS PANEL ====================
 import { getNasaApiKey, setNasaApiKey } from './config.js';
-import { getSpeechRate, setSpeechRate, getAutoSpeak, saveAutoSpeak, isSpeechSynthesisSupported } from './speech.js';
+import { getSpeechRate, setSpeechRate, getAutoSpeak, saveAutoSpeak, isSpeechSynthesisSupported, updateSpeechLang } from './speech.js';
 import { clearHistory } from './history.js';
 import { setActiveSpeed, updateSpeedLabel } from './ui.js';
+import { getCurrentLang, setLang, SUPPORTED_LANGUAGES, applyTranslations } from './i18n.js';
 
 const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
 
@@ -67,6 +68,24 @@ export function initSettings({ onClearHistory } = {}) {
       }
     });
     if (!isSpeechSynthesisSupported()) autoSpeakToggle.disabled = true;
+  }
+
+  // Language selector
+  const langSelect = document.getElementById('settings-lang-select');
+  if (langSelect) {
+    // Populate options
+    for (const [code, name] of Object.entries(SUPPORTED_LANGUAGES)) {
+      const opt = document.createElement('option');
+      opt.value = code;
+      opt.textContent = name;
+      if (code === getCurrentLang()) opt.selected = true;
+      langSelect.appendChild(opt);
+    }
+    langSelect.addEventListener('change', () => {
+      setLang(langSelect.value);
+      updateSpeechLang();
+      applyTranslations();
+    });
   }
 
   // Clear history

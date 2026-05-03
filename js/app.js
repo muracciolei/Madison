@@ -18,6 +18,7 @@ import {
 } from './ui.js';
 import { saveMessage, loadHistory, clearHistory } from './history.js';
 import { initSettings } from './settings.js';
+import { getCurrentLang, getWikiLang, getDictLang, applyTranslations, t } from './i18n.js';
 
 let isProcessing = false;
 
@@ -58,15 +59,18 @@ export async function handleQuery(query) {
 // ---- Intent → data → formatted text ----
 async function resolveQuery(query) {
   const intent = detectIntent(query);
+  const lang = getCurrentLang();
+  const wikiLang = getWikiLang();
+  const dictLang = getDictLang();
 
   switch (intent.type) {
     case 'weather': {
-      const location = extractLocation(query);
-      const data = await fetchWeather(location);
+      const location = extractLocation(query, lang);
+      const data = await fetchWeather(location, lang);
       return { text: formatWeather(data), source: data.source, sourceType: 'api', url: data.url };
     }
     case 'news': {
-      const topic = extractNewsTopic(query);
+      const topic = extractNewsTopic(query, lang);
       const items = await fetchNews(topic);
       return { text: formatNews(items, topic), source: 'News', sourceType: 'rss', url: null };
     }
@@ -86,27 +90,32 @@ async function resolveQuery(query) {
       return { text: formatExchange(data, currencyInfo), source: data.source, sourceType: 'api', url: data.url };
     }
     case 'dictionary': {
-      const word = extractWord(query);
+      const word = extractWord(query, lang);
       if (!word) {
-        const data = await fetchWikipedia(cleanWikiQuery(query));
+        const data = await fetchWikipedia(cleanWikiQuery(query, lang), wikiLang);
         return { text: formatWikipedia(data), source: data.source, sourceType: 'wiki', url: data.url };
       }
-      const data = await fetchDictionary(word);
+      const data = await fetchDictionary(word, dictLang);
       return { text: formatDictionary(data), source: data.source, sourceType: 'dict', url: data.url };
     }
     default: {
-      const data = await fetchWikipedia(cleanWikiQuery(query) || query);
+      const data = await fetchWikipedia(cleanWikiQuery(query, lang) || query, wikiLang);
       return { text: formatWikipedia(data), source: data.source, sourceType: 'wiki', url: data.url };
     }
   }
 }
 
-function extractNewsTopic(query) {
-  const patterns = [
-    /news\s+(?:about|on|regarding|related\s+to)\s+(.+)/i,
-    /(?:latest|breaking|recent)\s+(.+?)\s+news/i,
-    /(?:headlines?|stories?|articles?)\s+(?:about|on)\s+(.+)/i,
-  ];
+const NEWS_TOPIC_PATTERNS = {
+  en: [/news\s+(?:about|on|regarding|related\s+to)\s+(.+)/i, /(?:latest|breaking|recent)\s+(.+?)\s+news/i, /(?:headlines?)\s+(?:about|on)\s+(.+)/i],
+  es: [/noticias\s+(?:sobre|de|acerca\s+de)\s+(.+)/i, /(?:últimas|recientes)\s+noticias\s+(?:sobre|de)\s+(.+)/i],
+  it: [/notizie\s+(?:su|di|riguardo\s+a)\s+(.+)/i, /ultime\s+notizie\s+(?:su|di)\s+(.+)/i],
+  fr: [/(?:actualités|nouvelles)\s+(?:sur|à\s+propos\s+de|concernant)\s+(.+)/i, /dernières\s+(?:actualités|nouvelles)\s+(?:sur|de)\s+(.+)/i],
+  de: [/nachrichten\s+(?:über|zu|bezüglich)\s+(.+)/i, /aktuelle\s+nachrichten\s+(?:über|zu)\s+(.+)/i],
+  pt: [/notícias\s+(?:sobre|de|acerca\s+de)\s+(.+)/i, /últimas\s+notícias\s+(?:sobre|de)\s+(.+)/i],
+};
+
+function extractNewsTopic(query, lang = 'en') {
+  const patterns = [...(NEWS_TOPIC_PATTERNS[lang] ?? []), ...NEWS_TOPIC_PATTERNS.en];
   for (const p of patterns) {
     const m = query.match(p);
     if (m) return m[1].trim();
@@ -219,7 +228,11 @@ function initEventListeners() {
   if (isVoiceInputSupported()) {
     micBtn.removeAttribute('hidden');
     micBtn.addEventListener('click', () => isListening() ? stopListening() : startListening());
-    onListeningChange(listening => setMicListening(listening));
+    onListeningChange(listening => {
+      setMicListening(listening);
+      const input = document.getElementById('user-input');
+      if (input) input.placeholder = listening ? t('listening_placeholder') : t('input_placeholder');
+    });
     onSpeechResult(transcript => { clearInput(); handleQuery(transcript); });
     onSpeechPartial(transcript => setInputValue(transcript));
     onSpeechError(err => { console.warn('Speech error:', err); setMicListening(false); });
@@ -279,6 +292,7 @@ function handleUrlQuery() {
 async function init() {
   initTheme();
   loadSpeechPrefs();
+  applyTranslations();
   updateSpeedLabel(getSpeechRate());
   setActiveSpeed(getSpeechRate());
 

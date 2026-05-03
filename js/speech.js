@@ -1,4 +1,6 @@
 // ==================== SPEECH ====================
+import { getLocale } from './i18n.js';
+
 const _SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const _synthesis = window.speechSynthesis;
 
@@ -51,7 +53,7 @@ export function initSpeech() {
   recognition = new _SpeechRecognition();
   recognition.continuous = false;
   recognition.interimResults = true;
-  recognition.lang = localStorage.getItem('madison-speech-lang') || 'en-US';
+  recognition.lang = getLocale();
 
   recognition.onstart = () => { _isListening = true; onListeningCb?.(true); };
   recognition.onend   = () => { _isListening = false; onListeningCb?.(false); };
@@ -103,7 +105,7 @@ export function speak(text, onEnd = null) {
   const doSpeak = (voices) => {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = _rate;
-    utterance.lang = localStorage.getItem('madison-speech-lang') || 'en-US';
+    utterance.lang = getLocale();
     const voice = voices.find(v => v.lang.startsWith('en')) ?? voices[0];
     if (voice) utterance.voice = voice;
     utterance.onstart = () => { _isSpeaking = true; onSpeakingCb?.(true); };
@@ -124,4 +126,13 @@ export function speak(text, onEnd = null) {
 
 export function stopSpeaking() {
   if (_synthesis) { _synthesis.cancel(); _isSpeaking = false; onSpeakingCb?.(false); }
+}
+
+// Call after changing language so recognition picks up the new locale
+export function updateSpeechLang() {
+  if (recognition) {
+    const wasListening = _isListening;
+    if (wasListening) recognition.stop();
+    recognition.lang = getLocale();
+  }
 }
